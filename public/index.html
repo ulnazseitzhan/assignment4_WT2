@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Laptop Store</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    body { font-family: Arial; background:#f5f5f5; padding:20px }
+    .box { background:white; padding:20px; max-width:800px; margin:auto; border-radius:6px }
+    input, textarea, button { width:100%; padding:10px; margin:6px 0 }
+    button { background:#105666; color:white; border:none; cursor:pointer }
+    .hidden { display:none }
+    .laptop { border:1px solid #ccc; padding:10px; margin:10px 0 }
+    .danger { background:#c0392b }
+  </style>
+</head>
+<body>
+
+<div class="box">
+
+  <h1>Laptop Store</h1>
+
+    <!-- LOGIN BOX -->
+  <div id="loginBox">
+    <h2>Login</h2>
+    <input id="email" placeholder="Email" />
+    <input id="password" type="password" placeholder="Password" />
+    <button onclick="login()">Login</button>
+  </div>
+
+  <!-- ADMIN PANEL -->
+  <div id="adminPanel" class="hidden">
+    <h2>Admin Panel</h2>
+    <input id="name" placeholder="Laptop name" />
+    <input id="brand" placeholder="Brand" />
+    <input id="price" type="number" placeholder="Price" />
+    <textarea id="description" placeholder="Description"></textarea>
+    <button onclick="addLaptop()">Add Laptop</button>
+  </div>
+
+  <!-- LAPTOP LIST -->
+  <h2>Available Laptops</h2>
+  <div id="list"></div>
+
+</div>
+
+<script>
+const API = "http://localhost:3000";
+let token = null;
+let role = null;
+
+/* LOGIN */
+async function login() {
+  const res = await fetch(API + "/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: email.value,
+      password: password.value
+    })
+  });
+
+  const data = await res.json();
+  token = data.token;
+
+  const payload = JSON.parse(atob(token.split(".")[1]));
+  role = payload.role;
+
+  loginBox.classList.add("hidden");
+  if (role === "admin") adminPanel.classList.remove("hidden");
+
+  loadLaptops();
+}
+
+/* LOAD */
+async function loadLaptops() {
+  const res = await fetch(API + "/laptops");
+  const laptops = await res.json();
+  list.innerHTML = "";
+
+  laptops.forEach(l => {
+    const div = document.createElement("div");
+    div.className = "laptop";
+
+    div.innerHTML = `
+      <h3>${l.name}</h3>
+      <p>${l.brand}</p>
+      <p>${l.description || ""}</p>
+      <p>$${l.price}</p>
+      <button onclick="addToCart('${l._id}')">Add to cart</button>
+      ${role === "admin"
+        ? `<button class="danger" onclick="deleteLaptop('${l._id}')">Delete</button>`
+        : ""}
+    `;
+
+    list.appendChild(div);
+  });
+}
+
+/* ADD LAPTOP */
+async function addLaptop() {
+  await fetch(API + "/laptops", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + token
+    },
+    body: JSON.stringify({
+      name: name.value,
+      brand: brand.value,
+      price: Number(price.value),
+      description: description.value
+    })
+  });
+
+  loadLaptops();
+}
+
+/* DELETE */
+async function deleteLaptop(id) {
+  await fetch(API + "/laptops/" + id, {
+    method: "DELETE",
+    headers: {
+      "Authorization": "Bearer " + token
+    }
+  });
+
+  loadLaptops();
+}
+
+/* CART */
+async function addToCart(id) {
+  await fetch(API + "/cart/add/" + id, {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer " + token
+    }
+  });
+
+  alert("Added to cart");
+}
+</script>
+
+</body>
+</html>
