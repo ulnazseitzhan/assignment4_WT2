@@ -1,178 +1,180 @@
-Laptop Store API (Assignment 4)
-# Project Overview
+# Laptop Store (Endterm Project) — Advanced Databases (NoSQL)
 
-This project is a backend application for an online laptop store.
-It is a refactored version of Assignment 3, redesigned using MVC architecture and enhanced with authentication, authorization, and security features.
+## Project Overview
+Laptop Store is a full-stack web application built with:
+- Backend: Node.js + Express
+- Database: MongoDB (Mongoose)
+- Frontend: React + Vite + TailwindCSS
 
-The project demonstrates industry-standard backend practices including JWT authentication, Role-Based Access Control (RBAC), and password hashing.
+The project demonstrates:
+- Advanced NoSQL data modeling (embedded + referenced documents)
+- REST API design with business logic
+- Authentication & Authorization (JWT + roles)
+- Advanced MongoDB update/delete operators
+- Aggregation pipelines for analytics
+- Indexing and query optimization
 
-# Project Architecture (MVC)
-project-root/
-│
-├── server.js
-├── .env
-│
-├── models/
-│   ├── Laptop.js
-│   ├── User.js
-│   └── Cart.js
-│
-├── routes/
-│   ├── laptops.js
-│   ├── auth.js
-│   └── cart.js
-│
-├── middleware/
-│   └── auth.js
-│
-└── public/
-    └── index.html
+---
 
+## System Architecture
+**Frontend (React)** communicates with **Backend (Express REST API)** through HTTP requests.
+The backend performs:
+- CRUD operations
+- Validation & business logic
+- Authentication and authorization
+- Aggregations and optimized queries
 
-Models — MongoDB schemas (Laptop, User, Cart)
+MongoDB stores all application data.
 
-Routes — API endpoints and request handling
+---
 
-Middleware — authentication and authorization logic
+## Database Schema (Collections)
 
-Public — simple frontend for demonstration
+### 1) users
+- username (String)
+- email (String, unique)
+- password (String, hashed)
+- role (user/admin)
 
-# Data Models
-🔹 Laptop (Primary Object)
+Indexes:
+- { email: 1 } unique
 
-Represents products in the store.
+### 2) laptops
+- name (String)
+- brand (String)
+- price (Number)
+- stock (Number)
+- imageUrl (String)
+- description (String)
 
-Fields:
+Indexes:
+- Compound: { brand: 1, price: 1 }
+- Text index: { name: "text", brand: "text", description: "text" }
 
-name
+### 3) carts
+- userId (ObjectId -> users)
+- items[] (embedded array)
+  - laptopId (ObjectId -> laptops)
+  - quantity (Number)
 
-brand
+Indexes:
+- { userId: 1 } unique
+- { userId: 1, "items.laptopId": 1 }
 
-price
+### 4) orders
+- userId (ObjectId -> users)
+- items[] (embedded snapshot)
+  - laptopId
+  - name
+  - brand
+  - priceAtPurchase
+  - quantity
+- totalPrice (Number)
+- status (pending/paid/shipped/cancelled)
 
-description
+Indexes:
+- { userId: 1, createdAt: -1 }
 
-timestamps
+---
 
-Supports full CRUD operations.
+## MongoDB Operators Used
 
-🔹 User
+### Advanced Updates
+- $inc (decrease laptop stock, increase cart item quantity)
+- $push (add new item into cart)
+- $pull (remove item from cart)
+- $set (set cart quantity, clear cart, update order status)
+- Positional operator ($) for updating embedded array elements
 
-Used for authentication and authorization.
+### Aggregation Framework
+- $match
+- $unwind
+- $lookup
+- $group
+- $sort
+- $limit
+- $project
+- $addFields
 
-Fields:
+---
 
-email (unique)
+## API Documentation (Main Endpoints)
 
-password (hashed)
+### Auth
+- POST /auth/register
+- POST /auth/login
 
-role (user or admin)
+### Laptops
+- GET /laptops
+- GET /laptops/:id
+- POST /laptops (admin)
+- PUT /laptops/:id (admin)
+- DELETE /laptops/:id (admin)
 
-🔹 Cart (Secondary Object)
+### Cart (authorized user)
+- GET /cart
+- PATCH /cart/add/:laptopId
+- PATCH /cart/set/:laptopId
+- DELETE /cart/remove/:laptopId
+- DELETE /cart/clear
 
-Represents a user’s shopping cart.
+### Orders
+User:
+- POST /orders/checkout
+- GET /orders/my
 
-Fields:
+Admin:
+- GET /orders
+- GET /orders/:id
+- PATCH /orders/:id/status
+- DELETE /orders/:id
 
-userId (reference to User)
+### Analytics (Aggregation)
+- GET /analytics/top-brands (admin)
+- GET /analytics/cart-total (user)
 
-items (references to Laptop)
+---
 
-# Authentication & Security
-Password Hashing
+## Indexing and Optimization Strategy
+Indexes were added to support:
+- Fast login lookup by email (users)
+- Filtering and sorting laptops by brand + price (compound index)
+- Full text search for catalog (text index)
+- Fast cart lookup by userId (unique)
+- Fast order history retrieval by userId + createdAt
 
-Passwords are hashed using bcrypt
+---
 
-Plain-text passwords are never stored
+## Security
+Authentication:
+- JWT token
 
-JWT Authentication
+Authorization:
+- Role-based access control
+- adminOnly middleware protects admin endpoints
 
-Users authenticate via /auth/login
+---
 
-Server issues a JWT token
+## Frontend Pages
+- Home
+- Register
+- Login
+- Catalog
+- Cart
+- Orders
+- Admin Laptops (CRUD)
+- Analytics (aggregation result table)
 
-Token must be sent in Authorization header:
+---
 
-Authorization: Bearer <token>
+## How to Run
 
-# Role-Based Access Control (RBAC)
-
-Two roles are supported:
-
-user
-
-admin
-
-Access rules:
-
-GET /laptops → public access
-
-POST /laptops → admin only
-
-PUT /laptops/:id → admin only
-
-DELETE /laptops/:id → admin only
-
-Cart operations → authenticated users only
-
-Authorization is enforced using middleware.
-
-# API Endpoints
-Auth
-
-POST /auth/register — register a new user
-
-POST /auth/login — login and receive JWT
-
-Laptops
-
-GET /laptops — get all laptops (public)
-
-POST /laptops — create laptop (admin)
-
-PUT /laptops/:id — update laptop (admin)
-
-DELETE /laptops/:id — delete laptop (admin)
-
-Cart
-
-POST /cart/add/:id — add laptop to cart (user)
-
-GET /cart — get current user cart
-
-# How to Run the Project
-1. Install dependencies
+### Backend
+cd backend
 npm install
+npm run dev
 
-2. Configure environment variables
-
-Create a .env file:
-
-JWT_SECRET=supersecretkey123
-
-3. Start MongoDB
-
-Ensure MongoDB is running locally.
-
-4. Run the server
-node server.js
-
-
-Server will start at:
-
-http://localhost:3000
-
-# Testing
-
-All endpoints can be tested using Postman.
-Role-based access is verified by logging in as admin and user.
-
-# Notes
-
-The frontend is intentionally simple and is used only to demonstrate API functionality.
-The main focus of this assignment is backend architecture, security, and role-based access control.
-
-# Author
-
-Ulnaz Seitzhan
-Assignment 4 — Web Backend Development
+### Frontend
+cd frontend
+npm install
+npm run dev
